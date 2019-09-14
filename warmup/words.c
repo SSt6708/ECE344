@@ -1,8 +1,12 @@
 #include "common.h"
 
 int
-main()
+main(int argc, char *argv[])
 {
-	TBD();
+	int i;
+
+	for(i = 1; i < argc; i++){
+		printf("%s\n", argv[i]);
+	}
 	return 0;
 }
