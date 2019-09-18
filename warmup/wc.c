@@ -23,6 +23,7 @@ struct wc {
 };
 
 //helper functions
+int addWord(struct wc *wc, char *word, int index);
 void fillTable(struct wc* wc, char* userInput);
 int hashKey(char *word, unsigned long tableSize); // generates hashFunctions
 void printEntry( entry* t);
@@ -65,38 +66,42 @@ int hashKey(char*words, unsigned long tableSize){
 
 }
 
-void addWord(struct wc *wc, char *word, int index){
+int addWord(struct wc *wc, char *word, int index){
 
 	if (wc->table[index] == NULL){ //if nothings there, place it
+		
+		wc->table[index] = (entry*)malloc(sizeof(entry));
 		wc->table[index]->count = 1;
 		wc->table[index]->word = word;
 		wc->table[index]->next = NULL;
-		return;
+		return 1;
 	}
 
 	//pointer to the first of the list
-	entry* curr = wc->table[index]->next;
+	entry* curr = wc->table[index];
+	entry* prev = NULL;
 	
 
-	while(curr->next != NULL){
+	while(curr != NULL){
 
 		if(strcmp(word, curr->word) == 0){
-			curr->count ++;
+			curr->count = curr->count + 1;
 			free(word);
-			return;
+			return 1;
 		}else{
 			
+			prev = curr;
 			curr = curr->next;
 		}
 
 	}
 
 	// havent found the word so add it to the list
-	curr->next = (entry *)malloc(sizeof(entry)); // initialize a new entry at the end of the list
-	curr->next->count = 1;
-	curr->word = word;
-	curr->next->next = NULL;
-	return;
+	prev->next = (entry *)malloc(sizeof(entry)); // initialize a new entry at the end of the list
+	prev->next->count = 1;
+	prev->next->word = word;
+	prev->next->next = NULL;
+	return 1;
 }
 
 
@@ -105,40 +110,44 @@ void fillTable(struct wc* wc, char* userInput){
 	char *lastHold = NULL; //last word being parsed
 
 	int i = 0;
+	
 	int wordSize = 0;
 	int lastPosition = 0;
 
-	while(userInput[i]!= '\0'){
-
-		if(!isspace(userInput[i])){
-
-			
-			wordSize++;
-		}else{  // sees a space
-
-			if(wordSize != 0){
+	
+	
+	
+	while(userInput[i] != '\0'){ //while not the end of line
+			if(!isspace(userInput[i])){
+				wordSize ++;
 				
-				lastHold = (char*) malloc((wordSize+1)*sizeof(char)); //
-				int j = 0;
+			}else{
+				if(wordSize != 0){ //there is a word before space
+					lastHold = (char*)malloc((wordSize + 1) * sizeof(char)); // allocate the size of a new word
 
-				while(j < wordSize){
+					int j;
 
-					lastHold[j] = userInput[lastPosition + j];
+					for(j = 0; j < wordSize; j++){
+						lastHold[j] = userInput[lastPosition + j];
+					}
+						lastHold[j] = '\0';
+						int h = hashKey(lastHold, wc->tableSize);
+						addWord(wc, lastHold, h);
+						wordSize = 0;
+						
 				}
-				 lastPosition = i+1;// update the beginning index of the next word
 				
-				int Key = hashKey(lastHold, wc->tableSize);
-				addWord(wc, lastHold, Key);
-				lastHold = NULL;
-				wordSize = 0;
-				i++;
+				lastPosition = i +1;
 			}
-			i++;
-		}
+
 
 		i++;
 
 	}
+	
+	
+	
+	
 
 
 
@@ -146,21 +155,22 @@ void fillTable(struct wc* wc, char* userInput){
 
 void printEntry( entry* t){
 
-	while(t->next != NULL){
-		printf("%s:%d\n", t->word, t->count);
-		t = t->next;
 
+	if(t->next != NULL){
+		printEntry(t->next);
 	}
-
+	printf("%s:%d\n", t->word, t->count);
+	return;
 }
 void deleteEntry(entry* t){
 
-	if(t == NULL){
-		return;
+	if(t->next != NULL){
+		deleteEntry(t->next);
 	}
-	deleteEntry(t->next);
+	
 	free(t->word);
 	free(t);
+	return;
 }
 void
 wc_output(struct wc *wc)
