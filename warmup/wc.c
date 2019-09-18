@@ -23,7 +23,7 @@ struct wc {
 };
 
 //helper functions
-int addWord(struct wc *wc, char *word, int index);
+void addWord(struct wc *wc, char *word, int index);
 void fillTable(struct wc* wc, char* userInput);
 int hashKey(char *word, unsigned long tableSize); // generates hashFunctions
 void printEntry( entry* t);
@@ -66,7 +66,7 @@ int hashKey(char*words, unsigned long tableSize){
 
 }
 
-int addWord(struct wc *wc, char *word, int index){
+void addWord(struct wc *wc, char *word, int index){
 
 	if (wc->table[index] == NULL){ //if nothings there, place it
 		
@@ -74,7 +74,7 @@ int addWord(struct wc *wc, char *word, int index){
 		wc->table[index]->count = 1;
 		wc->table[index]->word = word;
 		wc->table[index]->next = NULL;
-		return 1;
+		return;
 	}
 
 	//pointer to the first of the list
@@ -87,7 +87,7 @@ int addWord(struct wc *wc, char *word, int index){
 		if(strcmp(word, curr->word) == 0){
 			curr->count = curr->count + 1;
 			free(word);
-			return 1;
+			return;
 		}else{
 			
 			prev = curr;
@@ -101,7 +101,7 @@ int addWord(struct wc *wc, char *word, int index){
 	prev->next->count = 1;
 	prev->next->word = word;
 	prev->next->next = NULL;
-	return 1;
+	return;
 }
 
 
