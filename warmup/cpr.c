@@ -1,5 +1,7 @@
 #include "common.h"
-
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 /* make sure to use syserror() when a system call fails. see common.h */
 
 void
