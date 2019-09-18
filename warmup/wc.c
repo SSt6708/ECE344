@@ -5,7 +5,7 @@
 #include "wc.h"
 #include <string.h>
 #include <ctype.h>
-#include <sys/malloc.h>
+
 
 
 typedef struct node{
