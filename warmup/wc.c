@@ -84,7 +84,7 @@ void addWord(struct wc *wc, char *word, int index){
 
 	while(curr != NULL){
 
-		if(strcmp(word, curr->word) == 0){
+		if(strcmp(word, curr->word) == 0){ //found the same word
 			curr->count = curr->count + 1;
 			free(word);
 			return;
