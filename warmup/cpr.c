@@ -41,7 +41,7 @@ main(int argc, char *argv[])
 	write(cret, buf, ret);
 */
 
-	int success ;
+	int success;
 	success = mkdir("./destination", S_IRWXU);
 	
 	if(success == -1){
@@ -49,17 +49,27 @@ main(int argc, char *argv[])
 	}
 	DIR *dirEntry;
 	
+	struct dirent *pdrent;
+	
 
 	dirEntry = opendir("./source");
 
-	char* buf = (char*) malloc(256*sizeof(char));
-	buf = readdir(dirEntry)->d_name;
+	
+	
 
-	printf("The first file name is: %s\n", buf);
+	while((pdrent = readdir(dirEntry)) != NULL){
+
+		printf("The first file name is: %s\n", pdrent->d_name);
+	}
+	
+
+	
 	
 	/*if (argc != 3) {
-		usage();
+		usage();\
+		
 	}*/
 	//TBD();
+	
 	return 0;
 }
