@@ -29,12 +29,7 @@ main(int argc, char *argv[])
 
 	
 
-	int success;
-	success = mkdir(dest, S_IRWXU); // make a destination folder
 	
-	if(success == -1){
-		fprintf(stderr, "Usage: cpr srcdir dstdir\n");
-	}
 	
 		copyDirectory(source, dest);
 		
@@ -58,9 +53,17 @@ main(int argc, char *argv[])
 
 void copyDirectory(char* source, char* dest){
 	
+
 	DIR *dirEntry;
 	struct dirent *pdrent;
+	struct stat filestat;
 	
+	int success;
+	success = mkdir(dest, S_IRWXU); // make a destination folder
+	
+	if(success == -1){
+		fprintf(stderr, "Usage: cpr srcdir dstdir\n");
+	}
 
 	dirEntry = opendir(source);
 
@@ -76,22 +79,48 @@ void copyDirectory(char* source, char* dest){
 		}
 
 		char*sourceName = makePathName(source, fileName);
+		printf("Source name is: %s\n", sourceName);
 		
-		char *destName = makePathName(dest, fileName);
 
+
+
+		char *destName = makePathName(dest, fileName);
+		printf("Destinasion name is: %s\n", destName);
+		
 		if(stat(sourceName, &filestat) < 0){
 			printf("read stat failed\n");
+			return;
+			
+		}
 
+		//1 is regular file, 2 is directory, 3 is other 
+		int fileMode;
+
+		if(S_ISREG(filestat.st_mode)){
+			fileMode = 1;
+		}else if(S_ISDIR(filestat.st_mode)){
+			fileMode = 2;
+		}else{
+			fileMode = 3;
+		}
+
+		if(fileMode == 1){
+			singleFileCopy(sourceName, destName);
+		}else if(fileMode == 2){
+
+			
+			copyDirectory(sourceName, destName); // recursively
 			
 		}
 		
 		
 		
 
-		printf("Source name: %s\nDestination name: %s\n", sourceName, destName);
+		//printf("Source name: %s\nDestination name: %s\n", sourceName, destName);
 
-		singleFileCopy(sourceName, destName);
+		
 	}	
+	
 }
 
 
@@ -100,7 +129,7 @@ void copyDirectory(char* source, char* dest){
 
 
 char* makePathName(char* source, char*fileName){
-	char *sourceName = (char*)malloc((strlen(fileName) + 1 + strlen(source))* sizeof(char));
+	char *sourceName = (char*)malloc((strlen(fileName) + strlen(source))* sizeof(char));
 		int i =0;
 		int j = 0;
 		while (source[i] != '\0'){
