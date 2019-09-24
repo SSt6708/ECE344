@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <dirent.h>
+#include <stdbool.h>
+#include <errno.h>
 
 /* make sure to use syserror() when a system call fails. see common.h */
 
@@ -17,35 +19,29 @@ usage()
 
 void singleFileCopy(char*source, char* dest);
 char* makePathName(char* source, char*fileName);
-
+bool ifRegularFile(char* path);
 void copyDirectory(char* source, char* dest);
+
+bool validDirName(char *name);
 
 int
 main(int argc, char *argv[])
 {
+
+	if (argc != 3) {
+		usage();
+		
+	}
+
+	/*source = "./source";
+	dest = "./distination";*/
 	char *source, *dest;
-	source = "./source";
-	dest = "./destination";
+	source = argv[1];
+	dest = argv[2];
 
-	
-
-	
-	
-		copyDirectory(source, dest);
-		
-		
-			
-			
+	copyDirectory(source, dest);
 		
 	
-	
-
-	
-	
-	/*if (argc != 3) {
-		usage();\
-		
-	}*/
 	//TBD();
 	
 	return 0;
@@ -56,80 +52,126 @@ void copyDirectory(char* source, char* dest){
 
 	DIR *dirEntry;
 	struct dirent *pdrent;
-	struct stat filestat;
+
+	 // permission of the file
+
+	//trying new things
 	
+	
+
+
 	int success;
 	success = mkdir(dest, S_IRWXU); // make a destination folder
-	
-	if(success == -1){
-		fprintf(stderr, "Usage: cpr srcdir dstdir\n");
+
+	if(success < 0){
+		syserror(mkdir, dest);
 	}
 
-	dirEntry = opendir(source);
-
-	//singleFileCopy("./source/test", "./destination/test ");
 	
+	
+	dirEntry = opendir(source);
+	
+	printf("%s\n", source);
+	
+
+	if(dirEntry == NULL){
+		syserror(opendir, source);
+	}
+
+	if(readdir(dirEntry) == NULL){
+		syserror(readdir, source);
+	}
+
+
+	struct stat filestat;
+	stat(source, &filestat); // try to extract the permission
+
+	if(stat(source, &filestat) < 0){
+		syserror(stat, source);
+	}
+	mode_t permission = filestat.st_mode;
 
 	while((pdrent = readdir(dirEntry)) != NULL){
 		
 		char* fileName = pdrent->d_name;
 		
-		if(fileName[0] == '.'){
-			continue;
-		}
-
-		char*sourceName = makePathName(source, fileName);
-		printf("Source name is: %s\n", sourceName);
-		
-
-
-
-		char *destName = makePathName(dest, fileName);
-		printf("Destinasion name is: %s\n", destName);
-		
-		if(stat(sourceName, &filestat) < 0){
-			printf("read stat failed\n");
-			return;
+		if(!validDirName(fileName)){
 			
-		}
-
-		//1 is regular file, 2 is directory, 3 is other 
-		int fileMode;
-
-		if(S_ISREG(filestat.st_mode)){
-			fileMode = 1;
-		}else if(S_ISDIR(filestat.st_mode)){
-			fileMode = 2;
 		}else{
-			fileMode = 3;
-		}
-
-		if(fileMode == 1){
-			singleFileCopy(sourceName, destName);
-		}else if(fileMode == 2){
 
 			
-			copyDirectory(sourceName, destName); // recursively
-			
+			char*sourceName = makePathName(source, fileName);
+			printf("Source name is: %s\n", sourceName);
+			char *destName = makePathName(dest, fileName);
+			printf("Destinasion name is: %s\n", destName);
+		
+			if(ifRegularFile(sourceName)){
+				singleFileCopy(sourceName, destName);
+			}else{
+				copyDirectory(sourceName, destName);
+			}
+		
 		}
-		
-		
-		
 
-		//printf("Source name: %s\nDestination name: %s\n", sourceName, destName);
-
+	
 		
 	}	
+
+	int closeDir;
+	closeDir = closedir(dirEntry);
+
+	if(closeDir < 0){
+		syserror(closeDir, source);
+	}
+
+	int setPerm;
+	setPerm = chmod(dest, permission);
+
+	if(setPerm < 0){
+		syserror(chmod, dest);
+	}
 	
 }
 
 
+bool validDirName(char *name){
+	
+	if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0){
+		return false;
+	}else{
+		return true;
+	}
+	
 
+
+}
+
+bool ifRegularFile(char* path){
+	struct stat filestat;
+
+	if(stat(path, &filestat) < 0){
+		syserror(stat, path);
+	}
+
+	stat(path, &filestat);
+
+
+	
+		if(S_ISREG(filestat.st_mode)){
+			return true;
+		}else{
+			return false;
+		}
+	
+		
+	
+
+}
 
 
 
 char* makePathName(char* source, char*fileName){
-	char *sourceName = (char*)malloc((strlen(fileName) + strlen(source))* sizeof(char));
+	char *sourceName = (char*)malloc((strlen(fileName) +2+ strlen(source))* sizeof(char));
 		int i =0;
 		int j = 0;
 		while (source[i] != '\0'){
@@ -144,42 +186,76 @@ char* makePathName(char* source, char*fileName){
 			sourceName[i+j] = fileName[j];
 			j++;
 		}
+		sourceName[i+j] = '\0';
 		return sourceName;
 }
 
 
 void singleFileCopy(char* sourceDir, char* destDir){
-	int fd, flags, ret, cret;
+	int fd, flags, ret, cret, wrt, setPerm;
 	char *buf;
 
-	buf = (char*)malloc(4096*sizeof(char)); // buffer that reads in a file
+	struct stat filestat;
+
+	if(stat(sourceDir, &filestat) < 0){
+		syserror(stat, sourceDir);
+	}
+	stat(sourceDir, &filestat); // try to extract the permission
+	mode_t permission = filestat.st_mode; // permission of the file
+
+	long fileSize = filestat.st_size;
+	buf = (char*)malloc(fileSize*sizeof(char)); // buffer that reads in a file, first 4096 bits
 	
 //try to copy single file 
-	flags = O_RDWR;
+	flags = O_RDONLY;
 	fd = open(sourceDir, flags);
 	
 	if(fd < 0){
-		fprintf(stderr, "Failed to open file\n");
-		exit(1);
+		syserror(open,sourceDir);
+		
 	}
 //
 	cret = creat(destDir, S_IRWXU);
 	if(cret < 0){
-		fprintf(stderr, "Failed to create file\n");
-		exit(1);
+		syserror(creat, destDir);
 	}
 	
 	
+	
+		ret= read(fd, buf, fileSize); 
 
-	ret= read(fd, buf, 4096); 
-	write(cret, buf, ret);
+	if(ret < 0){
+		syserror(read, sourceDir);
+	}
+
+		wrt = write(cret, buf, ret);
+
+	if(wrt < 0){
+		syserror(write, destDir);
+	}
+		
+	
+	
+
+	setPerm = chmod(destDir, permission);
+
+	if(setPerm < 0){
+		syserror(chmod, destDir);
+	}
+	
+
+	
+
 
 	int closeSrc = close(fd);
 	int closeDst = close(cret);
 
-	if(closeSrc == -1 || closeDst == -1){
-		fprintf(stderr, "Failed to close file\n");
-		exit(1);
+	if(closeSrc < 0){
+		syserror(close, sourceDir);
+	}
+
+	if(closeDst < 0){
+		syserror(close, destDir);
 	}
 
 	
