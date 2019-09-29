@@ -84,19 +84,19 @@ main(int argc, char **argv)
 	 * comment out TBD, and replace the -1 in each printf() with what is
 	 * expected to be printed.
 	 */
-	TBD();
+	//TBD();
 
 	/* show size of ucontext_t structure. Hint: use sizeof(). */
-	printf("ucontext_t size = %ld bytes\n", (long int)-1);
+	printf("ucontext_t size = %ld bytes\n", (long int)sizeof(mycontext));
 
 	/* now, look inside of the context you just saved. */
 
 	/* first, think about code */
 	/* the program counter is called rip in x86-64 */
-	printf("memory address of main() = 0x%lx\n", (unsigned long)-1);
+	printf("memory address of main() = 0x%lx\n", (unsigned long)&main);
 	printf("memory address of the program counter (RIP) saved "
 	       "in mycontext = 0x%lx\n",
-	       (unsigned long)-1);
+	       (unsigned long)mycontext.uc_mcontext.gregs[REG_RIP]);
 
 	/* now, think about parameters */
 	printf("argc = %d\n", -1);
