@@ -8,6 +8,9 @@ main(int argc, char **argv)
 	thread_init();
 	register_interrupt_handler(0);
 	/* Test locking */
-	test_lock();
+	test_lock(); 
+
+	printf("whats up git");
+
 	return 0;
 }
