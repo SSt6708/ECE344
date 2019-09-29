@@ -116,7 +116,7 @@ main(int argc, char **argv)
 	printf("memory address of the variable err = %p\n",
 	       (void *)&err);
 	printf("number of bytes pushed to the stack between setcontext_called "
-	       "and err = %ld\n", (unsigned long)(void *)&setcontext_called - (void*)&err);
+	       "and err = %ld\n", (unsigned long)(&setcontext_called - &err));
 
 	printf("stack pointer register (RSP) stored in mycontext = 0x%lx\n",
 	       (unsigned long)mycontext.uc_mcontext.gregs[REG_RSP]);
@@ -128,7 +128,7 @@ main(int argc, char **argv)
 	 * field is used to store an alternate stack for use during signal
 	 * handling, and is NOT the stack of the running thread. */
 	printf("value of uc_stack.ss_sp = 0x%lx\n",
-	       (unsigned long)mycontext.uc_stack.ssp);
+	       (unsigned long)mycontext.uc_stack.ss_sp);
 
 	/* Don't move on to the next part of the lab until you know how to
 	 * change the stack in a context when you manipulate a context to create
@@ -169,7 +169,7 @@ show_interrupt(void)
 	/* QUESTION: Are interrupts masked (i.e., disabled) in mycontext?
 	 * HINT: use sigismember below. */
 	printf("interrupt is disabled = %d\n",
-	       (unsigned int)(__sigismember(&mycontext.uc_sigmask, SIG_TYPE)? 1: 0));
+	       (unsigned int)__sigismember(&mycontext.uc_sigmask, SIG_TYPE));
 
 	interrupts_off();
 
@@ -179,5 +179,5 @@ show_interrupt(void)
 	/* QUESTION: which fields of mycontext changed as a result of the
 	 * getcontext call above? */
 	printf("interrupt is disabled = %d\n",
-	       (unsigned int)__sigismember(&mycontext.uc_sigmask, SIG_TYPE)? 1: 0));
+	       (unsigned int)__sigismember(&mycontext.uc_sigmask, SIG_TYPE));
 }

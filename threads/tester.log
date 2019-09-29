@@ -1,0 +1,19 @@
+main: setcontext_called = 0
+start = 0x55e9b6d00000
+end = 0x55e9b6d07000
+ucontext_t size = 936 bytes
+memory address of main() = 0x55e9b6d00eaf
+memory address of the program counter (RIP) saved in mycontext = 0x55e9b6d00ed1
+argc = -1225756384
+argv = 0x7ffd36d06158
+memory address of the variable setcontext_called = 0x7ffd36d0605c
+memory address of the variable err = 0x7ffd36d06058
+number of bytes pushed to the stack between setcontext_called and err = 1
+stack pointer register (RSP) stored in mycontext = 0x7ffd36d06040
+number of bytes between err and the saved stack in mycontext = 24
+value of uc_stack.ss_sp = 0x0
+main: setcontext_called = 1
+interrupt is disabled = 0
+interrupt is disabled = 1
+starting basic test
+thread.c:26: thread_id: please implement this functionality
