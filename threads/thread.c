@@ -6,13 +6,55 @@
 
 /* This is the wait queue structure */
 struct wait_queue {
-	/* ... Fill this in Lab 3 ... */
+	
 };
 
+
+enum{
+	READY = 0,
+	RUNNING = 1,
+	EXIT = 2
+};
 /* This is the thread control block */
 struct thread {
-	/* ... Fill this in ... */
+	Tid threadID;
+	int state; //ready, running or exited
+	ucontext_t context;
+	void* stack_address;
+	int kernal;//set it to one when kernal thread is created
+	int exit; //if 1, thread should exit 
+
 };
+
+
+typedef	struct qn
+{
+	struct qn *next;
+	struct thread *node; 
+}queue_node;
+
+
+typedef struct queue{  //ready queue
+	queue_node *head;
+}thread_queue;
+
+void enqueue(thread_queue *t, queue_node *q){ //push the node back to the queue
+
+	queue_node *tmp;
+
+	if(t->head == NULL){
+		t->head = q;
+	}
+
+	
+
+}
+
+
+
+
+
+
 
 void
 thread_init(void)
