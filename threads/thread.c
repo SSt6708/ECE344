@@ -189,7 +189,7 @@ thread_create(void (*fn) (void *), void *parg)
 	
 	
 	if(i == THREAD_MAX_THREADS){
-		fprintf(stderr, "No more threads can be created");
+		//fprintf(stderr, "No more threads can be created");
 		return THREAD_NOMORE;
 	}else{ //there's still space
 		ret = i; // new thread id
@@ -201,7 +201,7 @@ thread_create(void (*fn) (void *), void *parg)
 
 	if(new_thread == NULL){
 
-		fprintf(stderr, "Threads have no memory\n");
+		//fprintf(stderr, "Threads have no memory\n");
 		return THREAD_NOMEMORY; //cant create new threads 
 	}
 

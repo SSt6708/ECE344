@@ -1,15 +1,15 @@
 main: setcontext_called = 0
-start = 0x563db5b67000
-end = 0x563db5b6f000
+start = 0x5615fc56e000
+end = 0x5615fc576000
 ucontext_t size = 936 bytes
-memory address of main() = 0x563db5b67fbf
-memory address of the program counter (RIP) saved in mycontext = 0x563db5b67fe1
-argc = -1244204736
-argv = 0x7ffc5c153e98
-memory address of the variable setcontext_called = 0x7ffc5c153d9c
-memory address of the variable err = 0x7ffc5c153d98
+memory address of main() = 0x5615fc56ef3f
+memory address of the program counter (RIP) saved in mycontext = 0x5615fc56ef61
+argc = -59285184
+argv = 0x7ffd30928f88
+memory address of the variable setcontext_called = 0x7ffd30928e8c
+memory address of the variable err = 0x7ffd30928e88
 number of bytes pushed to the stack between setcontext_called and err = 1
-stack pointer register (RSP) stored in mycontext = 0x7ffc5c153d80
+stack pointer register (RSP) stored in mycontext = 0x7ffd30928e70
 number of bytes between err and the saved stack in mycontext = 24
 value of uc_stack.ss_sp = 0x0
 main: setcontext_called = 1
@@ -25,6 +25,7 @@ my id is 0
 message: hello from first thread
 thread returns from  first yield
 thread returns from second yield
+my id is 0
 message: hello from thread   0
 thread returns from  first yield
 thread returns from second yield
@@ -409,8 +410,9 @@ thread returns from second yield
 message: hello from thread 127
 thread returns from  first yield
 thread returns from second yield
+destroying all threads
 creating  1023 threads
-No more threads can be createdrunning   1023 threads
+running   1023 threads
 creating  1023 threads
 destroying 512 threads
 testing some destroys even though I'm the only thread
