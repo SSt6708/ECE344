@@ -59,6 +59,8 @@ test_basic()
 	allocated_space = minfo.uordblks;
 	/* create a thread */
 	ret = thread_create((void (*)(void *))hello, "hello from first thread");
+	
+
 	minfo = mallinfo();
 	if (minfo.uordblks <= allocated_space) {
 		printf("it appears that the thread stack is not being"
@@ -80,31 +82,41 @@ test_basic()
 	/* create NTHREADS threads */
 	for (ii = 0; ii < NTHREADS; ii++) {
 		ret = snprintf(msg[ii], 1023, "hello from thread %3d", ii);
+		//printf("Ret is %d\n", ret);
 		assert(ret > 0);
 		child[ii] = thread_create((void (*)(void *))hello, msg[ii]);
 		assert(thread_ret_ok(child[ii]));
 	}
-	printf("my id is %d\n", thread_id());
+	
 	for (ii = 0; ii < NTHREADS; ii++) {
+		
 		ret = thread_yield(child[ii]);
+		
 		assert(ret == child[ii]);
 	}
 
 	/* destroy NTHREADS + 1 threads we just created */
-	printf("destroying all threads\n");
+	
 	ret = thread_kill(ret2);
 	assert(ret == ret2);
+
+	
 	for (ii = 0; ii < NTHREADS; ii++) {
 		ret = thread_kill(child[ii]);
+		
 		assert(ret == child[ii]);
 	}
 
 	/* we destroyed other threads. yield so that these threads get to run
 	 * and exit. */
+	
+	
+	
 	ii = 0;
 	do {
 		/* the yield should be needed at most NTHREADS+2 times */
 		assert(ii <= (NTHREADS + 1));
+		
 		ret = thread_yield(THREAD_ANY);
 		ii++;
 	} while (ret != THREAD_NONE);

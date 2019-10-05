@@ -5,214 +5,165 @@
 #include "interrupt.h"
 #include <stdbool.h>
 
-
-
-
-
-/* This is the wait queue structure */
 struct wait_queue {
 	
 };
 
 
-enum{
-	READY = 0,
-	RUNNING = 1,
-	EXIT = 2
-};
-/* This is the thread control block */
-struct thread {
+
+
+
+typedef struct thread {
 	Tid threadID;
-	int state; //ready, running or exited
+	int state; //0 is 
 	ucontext_t context;
 	void* stack_address;
-	bool yield; // see if it yield twice 
-	int kernal;//set it to one when kernal thread is created
+	
 	int exit; //if 1, thread should exit 
+    struct thread *next;
 
-};
-
-
-typedef	struct qn
-{
-	struct qn *next;
-	struct thread *node; 
-}queue_node; //a node in the linked list
+}Thread;
 
 
-typedef struct queue{  //ready queue, the whole linked list
-	queue_node *head;
-}thread_queue; 
+Thread *ready_q = NULL;
+Thread *exit_q = NULL;
+Thread *curr_thread = NULL; //current thread thats running 
+int tidArray[THREAD_MAX_THREADS]; //set it to 1 if its taken 
+
+Thread first_thread; //first thread create static globally 
 
 
-//helper functions for queue
-void enqueue(thread_queue *t, queue_node *q);
-struct thread* findThread(thread_queue *t, Tid wantID);
-struct thread* queue_pop(thread_queue *t);
-void delete_queue_node(queue_node *q);
-void delete_queue_node_andthread(queue_node *q);
-struct thread* dequeue_thread(thread_queue *t, Tid thread_id);
-void deleteQueue (queue_node *q);
+//helper functions 
+void printQueue(Thread*ready_q);
+void insert_to_queue(Thread* newThread);
+void insert_to_exitQueue(Thread* newThread);
+Thread* dequeue_thread(Tid want_tid);
+void delete_exit_queue();
 
 
-
-struct thread* findThread(thread_queue *t, Tid id){
-	queue_node *tmp;
-
-	tmp = t->head;
-	while(tmp != NULL){
-
-		if(tmp->node->threadID == id){
-			return tmp->node;
-		}
-		tmp = tmp->next;
-
-	}
-	printf("Can't find this thread\n");
-	return NULL;
-}
-
-void delete_queue_node(queue_node *q){
-	free(q);
+void printQueue(Thread*ready_q){
 	
-}
-
-void delete_queue_node_andthread(queue_node *q){
-	free(q->node);
-	free(q);
-	
-}
-
-void deleteQueue(queue_node *q){
-	if(q->next!= NULL){
-		deleteQueue(q->next);
-	}
-	free(q->node);
-	free(q);
-}
-
-struct thread* queue_pop(thread_queue *t){
-	queue_node *tmp = NULL;
-	struct thread* first_thread = NULL;
-	if(t->head != NULL){
-		tmp = t->head;
-		t->head = t->head->next; //update head
-		first_thread = tmp->node;
-		tmp->next = NULL;
-	}
-	delete_queue_node(tmp);
-	return first_thread;
-}
-
-
-struct thread* dequeue_thread(thread_queue *t, Tid thread_id){
-
-	queue_node *tmp = NULL;
-	queue_node *prev = NULL;
-	struct thread* thread_to_dequeue = NULL;
-
-	if(t->head == NULL){
-		return NULL;
-	}
-
-	tmp = t->head;
-	prev = tmp;
-	while (tmp != NULL){
-		if(tmp->node->threadID == thread_id){
-			thread_to_dequeue = tmp->node;
-			prev->next = tmp->next;
-			tmp->next = NULL;
-			delete_queue_node(tmp);
-			return thread_to_dequeue;
-			
-		}
-		prev = tmp;
-		tmp = tmp->next;
-
-	}
-	return NULL;
-	
-	
-	
-	
-}
-
-void printQueue(thread_queue *t){
-	queue_node * q = t->head;
+	Thread*q = ready_q;
+	//printf("hi\n");
 	while(q != NULL){
-		printf("%i ->", (int)q->node->threadID);
+		//printf("hi from printQ with currently running thread %d\n", curr_thread->threadID);
+		printf("%i ->", (int)q->threadID);
+		q = q->next;
 	}
 	printf("\n");
 }
 
-void enqueue(thread_queue *t, queue_node *q){ //push the node back to the last of the linked list
 
-	queue_node *tmp;
+void insert_to_queue(Thread* newThread){
 
-	if(t->head == NULL){
-		t->head = q;
+	if(ready_q == NULL){
+		ready_q = newThread;
 	}else{
-		tmp = t->head;
+		Thread* tmp = ready_q;
 
-		while(tmp->next != NULL){
+		while (tmp->next != NULL)
+		{
 			tmp = tmp->next;
 		}
-
-		tmp->next = q;
-
+		tmp->next = newThread;
+		
 	}
-	q->node->state = READY; //in the ready queue
-	q->next = NULL;
+}
+void insert_to_exitQueue(Thread* newThread){
+
+	if(exit_q == NULL){
+		exit_q = newThread;
+	}else{
+		Thread* tmp = exit_q;
+
+		while (tmp->next != NULL)
+		{
+			tmp = tmp->next;
+		}
+		tmp->next = newThread;
+		
+	}
+}
+
+Thread* dequeue_thread(Tid want_tid){
+
+		Thread * temp = ready_q;
+		Thread * prev = ready_q;
+
+		while(temp->threadID != want_tid){
+			prev = temp;
+			temp = temp->next;
+		}
+		if(ready_q->threadID == want_tid){
+			ready_q = ready_q->next;
+		}else{
+			prev->next = temp->next;
+		}
+
+		temp->next = NULL;
+
+	return temp;
+
 
 }
 
 
 
+void delete_exit_queue(){ // delete exit queue 
 
-//global variables
-thread_queue *ready_q;
-thread_queue *exit_q;
-struct thread *curr_thread; //current thread thats running 
-int tidArray[THREAD_MAX_THREADS]; //set it to 1 if its taken 
+	Thread *delete = exit_q;
 
+	while(delete != NULL){
+		Thread *tmp = delete;
+		delete = delete->next;
+
+		if(tmp->threadID != 0){ 
+
+			//printf("Deleting thread id %d\n", tmp->threadID);
+
+			free(tmp->stack_address);
+			tmp->stack_address = NULL;
+		}
+		free(tmp);
+		tmp = NULL;
+
+	}
+
+	exit_q = NULL;
+
+}
+
+
+
+void thread_stub(void (*thread_main)(void *), void *arg){
+
+	thread_main(arg);
+	thread_exit();
+}
 
 
 
 
 void
-thread_init(void)
-{
-	//allocate the queue
-	ready_q = (thread_queue *)malloc(sizeof(thread_queue));
-	exit_q = (thread_queue *)malloc(sizeof(thread_queue));
+thread_init(void){
+
+	
+	getcontext(&(first_thread.context));
+
+	   //new state = 0 recover state = 1 
+	first_thread.next = NULL;
+	first_thread.stack_address = NULL;
+	first_thread.exit = 0;
+	first_thread.threadID = 0;
+	first_thread.state = 0;
 
 	int i;
-	for(i = 0 ; i < THREAD_MAX_THREADS; i++){
+	for(i = 0; i < THREAD_MAX_THREADS; i++){
 		tidArray[i] = 0;
 	}
 
-	// Create first thread
-	struct thread* kernalThread = (struct thread *)malloc(sizeof(struct thread));
-
-	kernalThread->kernal = 1;
-	kernalThread->threadID = 0;
 	tidArray[0] = 1;
-
-	kernalThread->yield = false;
-	kernalThread->state = RUNNING;
-	
-	curr_thread = kernalThread;
-	printQueue(ready_q);
-}
-
-void thread_stub(void (*thread_main)(void *), void *arg){
-	//Tid ret;
-
-	thread_main(arg);
-
-	//ret = curr_thread->threadID;
-
-	thread_exit();
+	curr_thread = &first_thread;
 
 }
 
@@ -224,12 +175,28 @@ thread_id()
 	return curr_thread->threadID;
 }
 
+
 Tid
 thread_create(void (*fn) (void *), void *parg)
 {
+	Tid ret;
 	
-	//create a new thread;
-	struct thread* new_thread = (struct thread*)malloc(sizeof(struct thread));
+	int i = 0;
+	while(i < THREAD_MAX_THREADS && tidArray[i] == 1){
+		i++;
+	}
+	
+	
+	
+	if(i == THREAD_MAX_THREADS){
+		fprintf(stderr, "No more threads can be created");
+		return THREAD_NOMORE;
+	}else{ //there's still space
+		ret = i; // new thread id
+		tidArray[ret] = 1;
+	}
+
+	Thread *new_thread = (Thread*)malloc(sizeof(Thread));
 
 
 	if(new_thread == NULL){
@@ -238,145 +205,207 @@ thread_create(void (*fn) (void *), void *parg)
 		return THREAD_NOMEMORY; //cant create new threads 
 	}
 
-	//check if theres no more thr
-	int i = 0;
-	while(i < THREAD_MAX_THREADS && tidArray[i] == 1){
-		i++;
-	}
+	getcontext(&(new_thread->context));
+	new_thread->threadID = ret;
+	new_thread->exit = 0;
+	new_thread->next = NULL;
+	new_thread->state = 0;
 
-	if(i == THREAD_MAX_THREADS){
-		fprintf(stderr, "No more threads can be created");
-		return THREAD_NOMORE;
-	}else{ //there's still space
-		new_thread->threadID = i;
-		tidArray[i] = 1;
-	}
-
-	getcontext(&new_thread->context); //sets the new threads contex to the current contex 
-
-	new_thread->context.uc_mcontext.gregs[REG_RIP] = (long long int)&thread_stub;
-	//initialize the argument pointer to the new thread 
-	new_thread->context.uc_mcontext.gregs[REG_RDI] = (long long int) fn;
-	new_thread->context.uc_mcontext.gregs[REG_RSI] = (long long int)parg;
-
-	new_thread->kernal = 0; //not a kernal thread
-	new_thread->state = READY;
-	new_thread->yield = false;
-	//allocate new stack ptr
-
-	void * stack_ptr =  malloc(sizeof(THREAD_MIN_STACK));
+	void * stack_ptr =  malloc((THREAD_MIN_STACK + 16)/ 16 *16);
 	
 	if(stack_ptr == NULL){
-		free(new_thread);
 
 		return THREAD_NOMEMORY;
 	
 	}
-
-	new_thread->context.uc_stack.ss_sp = stack_ptr;
-	new_thread->context.uc_mcontext.gregs[REG_RSP] = (long long int) stack_ptr + THREAD_MIN_STACK -8;
-	new_thread->context.uc_stack.ss_size = THREAD_MIN_STACK - 8;
-
 	new_thread->stack_address = stack_ptr;
-	new_thread->exit = 0;
 
-	//puts it in the ready queue
-	queue_node *tmp;
-	tmp = (queue_node*)malloc(sizeof(queue_node));
-	tmp->next = NULL;
-	tmp->node = new_thread;
-
-	enqueue(ready_q, tmp);
+	new_thread->context.uc_mcontext.gregs[REG_RSP] = (long long int)(stack_ptr + THREAD_MIN_STACK -8);
+	new_thread->context.uc_mcontext.gregs[REG_RBP] = (long long int)stack_ptr;
+	new_thread->context.uc_mcontext.gregs[REG_RIP] = (long long int)thread_stub;
+	//initialize the argument pointer to the new thread 
+	new_thread->context.uc_mcontext.gregs[REG_RDI] = (long long int)fn;
+	new_thread->context.uc_mcontext.gregs[REG_RSI] = (long long int)parg;
 
 
-
+	insert_to_queue(new_thread);
+	
 	return new_thread->threadID;
+
+
+
+
+
 }
 
 Tid
 thread_yield(Tid want_tid)
 {
-	Tid ret;
-	printQueue(ready_q);
+	
 	if(want_tid >= -2 && want_tid < THREAD_MAX_THREADS){ // make sure the id is within the range 
-		printf("see if want_tid: %d\n", want_tid);
 		
-		if(ready_q->head == NULL){
-			printf("Nothing in ready q\n");
-		}else{
-			printf("theres something\n");
-		}
-		
-		if(want_tid == THREAD_ANY && ready_q->head == NULL){
-			printf("im here\n");
+		if(want_tid == THREAD_ANY && ready_q == NULL){
 			return THREAD_NONE;
 		}	
-
 
 		if(want_tid > 0 && tidArray[want_tid] == 0){
 			return THREAD_INVALID;
 		}
-
-
 	}else{
 		return THREAD_INVALID;
-	}
-
-
-	queue_node* curr = (queue_node*)malloc(sizeof(queue_node));
-	curr->node = curr_thread;
-	printf("the first id is: %d\n", curr_thread->threadID);
-	enqueue(ready_q, curr); //push back to the end of the queue
-	// put the current 
-
-	getcontext(&curr->node->context); //store the current thread
-
-	if(curr_thread->yield == false){ 
-
-		curr_thread->yield = true;
-		if(want_tid == THREAD_ANY){
-
-			curr_thread = queue_pop(ready_q); //first in the queue
-		}else if(want_tid == THREAD_SELF){
-			curr_thread = dequeue_thread(ready_q, curr->node->threadID);
-		}else{
-			curr_thread = dequeue_thread(ready_q, want_tid);
 		}
+	
+
+	
+	if(want_tid == THREAD_ANY){
 
 		
-		ret = curr_thread->threadID;
-		printf("the first id is: %d\n", ret);
 
-		curr_thread->state = RUNNING;
-		setcontext(&curr_thread->context);
+		Thread *temp = ready_q;
+		ready_q = ready_q->next;
+		temp->next = NULL;
+
+		Tid ret = temp->threadID;
+
+		insert_to_queue(curr_thread);
+		curr_thread->state = 0;
+
+		getcontext(&(curr_thread->context));
+
+		if(curr_thread->exit == 1){
+			thread_exit();
+		}
+
+		if(exit_q != NULL){
+			//printf("Exit que not empty\n");
+			delete_exit_queue();
+		}
+
+		if(!tidArray[ret]){
+			return ret;
+		}
+
+		if(temp->state == 0 && curr_thread->state != 1){
+
+			temp->state = 1;
+			curr_thread = temp;
+			setcontext(&(temp->context));
+		}
+
+		return ret;
+	}else if(want_tid == THREAD_SELF || want_tid == curr_thread->threadID){
+
+		curr_thread->state = 0;
+		getcontext(&(curr_thread->context));
+
+		if(curr_thread->state == 0){
+			curr_thread->state = 1;
+			setcontext(&(curr_thread->context));
+		}
+		return curr_thread->threadID;
+	}else{
+
+		Thread *temp = dequeue_thread(want_tid);
+		
+		Tid ret = temp->threadID;
+		insert_to_queue(curr_thread);
+		curr_thread->state = 0;
+		getcontext(&(curr_thread->context));
+	
+		if(curr_thread->exit == 1){
+			thread_exit();
+		}
+
+		if(exit_q != NULL){
+			delete_exit_queue();
+			//printf("Exit que not empty\n");
+		}
+
+		if(!tidArray[ret]){
+			return ret;
+		}
+
+		if(temp->state == 0 && curr_thread->state != 1){
+			temp->state = 1;
+			curr_thread = temp;
+			setcontext(&(temp->context));
+		}
+		return ret;
+
 
 	}
 
 
-	curr_thread->yield = false; //reset flag
-	return ret;
+	return THREAD_FAILED;
+
 }
 
 void
 thread_exit()
-{
-	//puts the current thread into exit queue
-	queue_node* exitNode = (queue_node*)malloc(sizeof(queue_node));
-	
-	exitNode->node->state = EXIT;
-	exitNode->node = curr_thread;
-	enqueue(exit_q, exitNode);
+{ 
+	if(ready_q == NULL){
+		exit(0);
+	}
 
-	curr_thread = queue_pop(ready_q);
-	setcontext(&curr_thread->context);
-	curr_thread->yield = false;
+	Thread *curr = curr_thread;
+	Thread *new = ready_q;
+	ready_q = ready_q->next;
+	curr->next = NULL;
+	tidArray[curr->threadID] = 0;
+	insert_to_exitQueue(curr);
+	new->next = NULL;
+	new->state = 1;
+	curr_thread = new;
+	setcontext(&(new->context));
+	
+	
+
 }
 
 Tid
 thread_kill(Tid tid)
 {
-	TBD();
-	return THREAD_FAILED;
+	
+	if(tid == THREAD_SELF || tid == curr_thread->threadID || tid < -2 || tid > THREAD_MAX_THREADS -1){
+		return THREAD_INVALID;
+	}
+
+	if(tid > 0 && tidArray[tid] == 0){
+		return THREAD_INVALID;
+	}
+
+
+	if(tid == THREAD_ANY){
+		if(ready_q == NULL){
+			return THREAD_INVALID;
+		}
+
+		Thread* temp = ready_q;
+		Tid ret = temp->threadID;
+		temp->exit = 1;
+		return ret;
+
+	}else{
+		if(ready_q == NULL){
+			return THREAD_INVALID;
+		}
+
+		Thread* temp = ready_q;
+
+		while(temp->threadID != tid){
+			temp = temp->next;
+		}
+		Tid ret = temp->threadID;
+		temp->exit = 1;
+		return ret;
+
+
+
+
+	}
+	
+
+ return THREAD_FAILED;
 }
 
 /*******************************************************************
