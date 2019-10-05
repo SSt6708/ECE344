@@ -87,7 +87,7 @@ test_basic()
 		child[ii] = thread_create((void (*)(void *))hello, msg[ii]);
 		assert(thread_ret_ok(child[ii]));
 	}
-	
+	printf("my id is %d\n", thread_id())
 	for (ii = 0; ii < NTHREADS; ii++) {
 		
 		ret = thread_yield(child[ii]);
