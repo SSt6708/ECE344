@@ -5,9 +5,7 @@
 #include "interrupt.h"
 #include <stdbool.h>
 
-struct wait_queue {
-	
-};
+
 
 
 
@@ -25,6 +23,13 @@ typedef struct thread {
 }Thread;
 
 
+
+struct wait_queue {
+	Thread *wait_head;
+	int size;
+	
+};
+
 Thread *ready_q = NULL;
 Thread *exit_q = NULL;
 Thread *curr_thread = NULL; //current thread thats running 
@@ -39,7 +44,7 @@ void insert_to_queue(Thread* newThread);
 void insert_to_exitQueue(Thread* newThread);
 Thread* dequeue_thread(Tid want_tid);
 void delete_exit_queue();
-
+void insert_to_wait(Thread* newThread, struct wait_queue *wq);
 
 void printQueue(Thread*ready_q){
 	
@@ -137,6 +142,7 @@ void delete_exit_queue(){ // delete exit queue
 
 void thread_stub(void (*thread_main)(void *), void *arg){
 
+	interrupts_set(1);
 	thread_main(arg);
 	thread_exit();
 }
@@ -180,7 +186,7 @@ Tid
 thread_create(void (*fn) (void *), void *parg)
 {
 	Tid ret;
-	
+	int enable = interrupts_set(0);
 	int i = 0;
 	while(i < THREAD_MAX_THREADS && tidArray[i] == 1){
 		i++;
@@ -230,6 +236,8 @@ thread_create(void (*fn) (void *), void *parg)
 
 	insert_to_queue(new_thread);
 	
+	
+	interrupts_set(enable);
 	return new_thread->threadID;
 
 
@@ -241,17 +249,20 @@ thread_create(void (*fn) (void *), void *parg)
 Tid
 thread_yield(Tid want_tid)
 {
-	
+	int enable = interrupts_set(0);
 	if(want_tid >= -2 && want_tid < THREAD_MAX_THREADS){ // make sure the id is within the range 
 		
 		if(want_tid == THREAD_ANY && ready_q == NULL){
+			interrupts_set(enable);
 			return THREAD_NONE;
 		}	
 
 		if(want_tid > 0 && tidArray[want_tid] == 0){
+			interrupts_set(enable);
 			return THREAD_INVALID;
 		}
 	}else{
+		interrupts_set(enable);
 		return THREAD_INVALID;
 		}
 	
@@ -282,6 +293,8 @@ thread_yield(Tid want_tid)
 		}
 
 		if(!tidArray[ret]){
+			
+			interrupts_set(enable);
 			return ret;
 		}
 
@@ -291,7 +304,8 @@ thread_yield(Tid want_tid)
 			curr_thread = temp;
 			setcontext(&(temp->context));
 		}
-
+		
+		interrupts_set(enable);
 		return ret;
 	}else if(want_tid == THREAD_SELF || want_tid == curr_thread->threadID){
 
@@ -302,6 +316,8 @@ thread_yield(Tid want_tid)
 			curr_thread->state = 1;
 			setcontext(&(curr_thread->context));
 		}
+		
+		interrupts_set(enable);
 		return curr_thread->threadID;
 	}else{
 
@@ -322,6 +338,8 @@ thread_yield(Tid want_tid)
 		}
 
 		if(!tidArray[ret]){
+			
+			interrupts_set(enable);
 			return ret;
 		}
 
@@ -330,6 +348,8 @@ thread_yield(Tid want_tid)
 			curr_thread = temp;
 			setcontext(&(temp->context));
 		}
+		
+		interrupts_set(enable);
 		return ret;
 
 
@@ -346,7 +366,8 @@ thread_exit()
 	if(ready_q == NULL){
 		exit(0);
 	}
-
+	interrupts_enabled(0);
+	
 	Thread *curr = curr_thread;
 	Thread *new = ready_q;
 	ready_q = ready_q->next;
@@ -365,7 +386,7 @@ thread_exit()
 Tid
 thread_kill(Tid tid)
 {
-	
+	int enable = interrupts_set(0);
 	if(tid == THREAD_SELF || tid == curr_thread->threadID || tid < -2 || tid > THREAD_MAX_THREADS -1){
 		return THREAD_INVALID;
 	}
@@ -383,6 +404,7 @@ thread_kill(Tid tid)
 		Thread* temp = ready_q;
 		Tid ret = temp->threadID;
 		temp->exit = 1;
+		interrupts_set(enable);
 		return ret;
 
 	}else{
@@ -397,6 +419,7 @@ thread_kill(Tid tid)
 		}
 		Tid ret = temp->threadID;
 		temp->exit = 1;
+		interrupts_set(enable);
 		return ret;
 
 
@@ -404,7 +427,7 @@ thread_kill(Tid tid)
 
 	}
 	
-
+interrupts_set(enable);
  return THREAD_FAILED;
 }
 
@@ -420,8 +443,8 @@ wait_queue_create()
 
 	wq = malloc(sizeof(struct wait_queue));
 	assert(wq);
-
-	TBD();
+	wq->wait_head = NULL;
+	wq->size = 0;
 
 	return wq;
 }
@@ -429,14 +452,103 @@ wait_queue_create()
 void
 wait_queue_destroy(struct wait_queue *wq)
 {
-	TBD();
+	if(wq == NULL){ //nothing to delete
+		return;
+	}
+
+	Thread* temp = wq->wait_head;
+
+	while(temp!= NULL){
+		Thread* delete = temp;
+		temp = temp->next;
+
+		if(delete->threadID != 0){
+			free(delete->stack_address);
+			delete->stack_address = NULL;
+		}
+		free(delete);
+		delete = NULL;
+	}
+
+
 	free(wq);
 }
+
+void insert_to_wait(Thread* newThread, struct wait_queue *wq){
+
+	Thread* head = wq->wait_head;
+	
+	
+	if(head == NULL){
+		wq->wait_head = newThread;
+		wq->size++;
+	}else{
+		Thread* tmp = head;
+
+		while (tmp->next != NULL)
+		{
+			tmp = tmp->next;
+		}
+		tmp->next = newThread;
+		wq->size++;
+		
+	}
+}
+
+
 
 Tid
 thread_sleep(struct wait_queue *queue)
 {
-	TBD();
+	
+	
+	int enable = interrupts_set(0);
+
+	if(queue == NULL){
+
+		interrupts_set(enable);
+		return THREAD_INVALID;
+	}else if (ready_q == NULL){
+		interrupts_set(enable);
+		return THREAD_NONE;
+	}else{
+
+		Thread *temp = ready_q;
+		ready_q = ready_q->next;
+		temp->next = NULL;
+		
+		Tid ret = temp->threadID;
+
+		insert_to_wait(curr_thread, queue);
+		curr_thread->state = 0; //set it to new 
+		getcontext(&(curr_thread->context));
+
+		if(curr_thread->exit == 1){
+			thread_exit();
+		}
+
+		if(exit_q != NULL){
+			//printf("Exit que not empty\n");
+			delete_exit_queue();
+		}
+
+		if(!tidArray[ret]){
+			
+			interrupts_set(enable);
+			return ret;
+		}
+
+		if(temp->state == 0 && curr_thread->state != 1){
+
+			temp->state = 1;
+			curr_thread = temp;
+			setcontext(&(temp->context));
+		}
+		
+		interrupts_set(enable);
+		return ret;
+	}
+	interrupts_set(enable);
 	return THREAD_FAILED;
 }
 
@@ -445,7 +557,44 @@ thread_sleep(struct wait_queue *queue)
 int
 thread_wakeup(struct wait_queue *queue, int all)
 {
-	TBD();
+	int enable = interrupts_set(0);
+
+	if(queue == NULL){
+		interrupts_set(enable);
+		return 0;
+	}else if(queue->wait_head == NULL){
+		interrupts_set(enable);
+		return 0;
+	}else{
+
+		if(all == 0){ //wake up one thread
+			if(queue->size == 1){
+				insert_to_queue(queue->wait_head);
+				queue->wait_head = NULL;
+			}else{
+				Thread* temp = queue->wait_head;
+				queue->wait_head = temp->next;
+				queue->size --;
+				temp->next = NULL;
+				insert_to_queue(temp);
+			}
+			interrupts_set(enable);
+			return 1;
+		}else if(all == 1){ // wake up all in wait queue
+			
+			int size = queue->size;
+
+			insert_to_queue(queue->wait_head);
+			queue->wait_head = NULL;
+			queue->size = 0;
+			interrupts_set(enable);
+			return size;
+		}
+
+
+
+	}
+	interrupts_set(enable);
 	return 0;
 }
 
@@ -458,7 +607,8 @@ thread_wait(Tid tid)
 }
 
 struct lock {
-	/* ... Fill this in ... */
+	struct wait_queue *wq;
+	int lock_state;
 };
 
 struct lock *
@@ -468,8 +618,9 @@ lock_create()
 
 	lock = malloc(sizeof(struct lock));
 	assert(lock);
-
-	TBD();
+	lock->wq = wait_queue_create();
+	lock->lock_state = 0;
+	
 
 	return lock;
 }
@@ -479,7 +630,7 @@ lock_destroy(struct lock *lock)
 {
 	assert(lock != NULL);
 
-	TBD();
+	wait_queue_destroy(lock->wq);
 
 	free(lock);
 }
@@ -488,20 +639,28 @@ void
 lock_acquire(struct lock *lock)
 {
 	assert(lock != NULL);
-
-	TBD();
+	int enable = interrupts_set(0);
+	while(lock->lock_state == 1){
+		thread_sleep(lock->wq);
+	}
+	lock->lock_state = 1;
+	interrupts_set(enable);
+	
 }
 
 void
 lock_release(struct lock *lock)
 {
 	assert(lock != NULL);
-
-	TBD();
+	int enable = interrupts_set(0);
+	lock->lock_state = 0;
+	thread_wakeup(lock->wq, 1);
+	interrupts_set(enable);
+	
 }
 
 struct cv {
-	/* ... Fill this in ... */
+	struct wait_queue *wq;
 };
 
 struct cv *
@@ -511,8 +670,9 @@ cv_create()
 
 	cv = malloc(sizeof(struct cv));
 	assert(cv);
+	cv->wq = wait_queue_create();
 
-	TBD();
+	
 
 	return cv;
 }
@@ -521,8 +681,8 @@ void
 cv_destroy(struct cv *cv)
 {
 	assert(cv != NULL);
-
-	TBD();
+	wait_queue_destroy(cv->wq);
+	
 
 	free(cv);
 }
@@ -532,8 +692,10 @@ cv_wait(struct cv *cv, struct lock *lock)
 {
 	assert(cv != NULL);
 	assert(lock != NULL);
-
-	TBD();
+	lock_release(lock);
+	thread_sleep(cv->wq);
+	lock_acquire(lock);
+	
 }
 
 void
@@ -541,8 +703,8 @@ cv_signal(struct cv *cv, struct lock *lock)
 {
 	assert(cv != NULL);
 	assert(lock != NULL);
-
-	TBD();
+	thread_wakeup(cv->wq, 0);
+	
 }
 
 void
@@ -550,6 +712,6 @@ cv_broadcast(struct cv *cv, struct lock *lock)
 {
 	assert(cv != NULL);
 	assert(lock != NULL);
-
-	TBD();
+	thread_wakeup(cv->wq, 1);
+	
 }

@@ -10,7 +10,7 @@ main(int argc, char **argv)
 	/* Test locking */
 	test_lock(); 
 
-	printf("whats up git");
+	
 
 	return 0;
 }

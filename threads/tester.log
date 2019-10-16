@@ -421,3 +421,51 @@ for my grand finale, I will destroy myself
 while my talented assistant prints "basic test done"
 finale running
 basic test done
+starting wakeup test
+thread.c:424: wait_queue_create: please implement this functionality
+starting wakeup test
+thread.c:424: wait_queue_create: please implement this functionality
+starting wakeup test
+thread.c:424: wait_queue_create: please implement this functionality
+starting wakeup test
+thread.c:424: wait_queue_create: please implement this functionality
+starting wakeup test
+thread.c:424: wait_queue_create: please implement this functionality
+starting wakeup test
+thread.c:424: wait_queue_create: please implement this functionality
+starting wakeup test
+thread.c:424: wait_queue_create: please implement this functionality
+starting wakeup test
+thread.c:424: wait_queue_create: please implement this functionality
+starting wakeup test
+thread.c:424: wait_queue_create: please implement this functionality
+starting wakeup test
+initial thread returns from sleep(NULL)
+initial thread returns from sleep(NONE)
+wakeup test done
+starting wakeup test
+initial thread returns from sleep(NULL)
+initial thread returns from sleep(NONE)
+wakeup test done
+starting wakeup test
+initial thread returns from sleep(NULL)
+initial thread returns from sleep(NONE)
+wakeup test done
+starting wakeup test
+initial thread returns from sleep(NULL)
+initial thread returns from sleep(NONE)
+wakeup test done
+starting wakeup test
+initial thread returns from sleep(NULL)
+initial thread returns from sleep(NONE)
+wakeup test done
+starting wakeup test
+initial thread returns from sleep(NULL)
+initial thread returns from sleep(NONE)
+wakeup test done
+starting lock test
+thread.c:605: thread_wait: please implement this functionality
+starting lock test
+thread.c:605: thread_wait: please implement this functionality
+starting lock test
+thread.c:605: thread_wait: please implement this functionality

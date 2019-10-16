@@ -1,2 +1,8 @@
 ucontext test, 10, 10
 basic test, 44, 44
+wakeup test, 0, 10
+wakeup test, 0, 10
+wakeup test, 0, 10
+wakeup test, 10, 10
+wakeup all test, 6, 6
+lock test, 0, 14
