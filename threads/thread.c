@@ -660,9 +660,37 @@ thread_wait(Tid tid)
 	// 		exit = exit->next;
 	// 	}
 	// }
+	// int ready_found = 0;
+	// int wait_found = 0;
+
+	// Thread* ready = ready_q;
+	// while(ready->threadID != tid && ready != NULL){
+	// 	if(ready->threadID == tid){
+	// 		ready_found = 1;
+	// 		break;
+	// 	}else{
+	// 		ready = ready->next;
+	// 	}
+	// }
+
+	
+	// for(int j = 0; j < THREAD_MAX_THREADS; j++){
+		
+	// 	if(wq[j]!= NULL){
+	// 		Thread* thread_in_wait = wq[j]->wait_head;
+	// 		while(thread_in_wait->threadID != tid && thread_in_wait != NULL){
+	// 			if(thread_in_wait->threadID == tid){
+	// 				wait_found = 1;
+	// 				break;
+	// 			}
+	// 			thread_in_wait = thread_in_wait->next;
+	// 		}
+	// 	}
+		
+	// }
 
 
-	if(tidArray[tid] == 0 || tidArray[tid] == THREAD_SELF || tid == curr_thread->threadID || tid < 0){
+	if(tidArray[tid] == 0 || tidArray[tid] == THREAD_SELF || tid == curr_thread->threadID || tid < 0 ){
 		interrupts_set(enable);
 		return THREAD_INVALID;
 	}
