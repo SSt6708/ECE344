@@ -514,6 +514,8 @@ out:
 	while (thread_yield(THREAD_ANY) != THREAD_NONE) {
 	}
 
+
+	
 	struct mallinfo minfo_end = mallinfo();
 	assert(minfo_end.uordblks == minfo_start.uordblks);
 	assert(minfo_end.hblks == minfo_start.hblks);
@@ -576,7 +578,7 @@ test_wait(void)
 					(void *)i);
 		assert(thread_ret_ok(wait[i]));
 	}
-
+	
 	__sync_fetch_and_add(&done, 1);
 	for (i = 0; i < NTHREADS; i++) {
 		thread_wait(wait[i]);
@@ -593,6 +595,7 @@ static void
 test_wait_kill_thread(Tid parent)
 {
 	Tid ret = thread_kill(parent);	/* ouch */
+	//printf("The return for test wait kill is: %d\n", ret); //add on
 	assert(ret == parent);
 	unintr_printf("its over\n");
 }
@@ -607,6 +610,7 @@ test_wait_kill(void)
 	/* create a thread */
 	child = thread_create((void (*)(void *))test_wait_kill_thread,
 			      (void *)(long)thread_id());
+	
 	assert(thread_ret_ok(child));
 	ret = thread_wait(child);
 
@@ -618,8 +622,9 @@ test_wait_kill(void)
 static void
 test_wait_parent_thread(Tid parent)
 {
+	
 	Tid ret = thread_wait(parent);
-
+	
 	if (ret == parent)
 		unintr_printf("%d: thread woken\n", thread_id());
 	else if (ret == THREAD_INVALID)
@@ -676,7 +681,7 @@ test_wait_parent(void)
 		}
 		wait[rand] = THREAD_NONE;
 	}
-
+	printf("Right before thread exit, plan to kill %d threads\n", NTHREADS/2);
 	thread_exit();
 
 	/* should never get here */
