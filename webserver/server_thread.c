@@ -3,6 +3,58 @@
 #include "common.h"
 #include <pthread.h>
 
+
+
+
+typedef struct node{
+
+	int count;
+	struct file_data *data;
+	struct node* next; //a linked list;
+}entry;
+
+
+typedef struct h_table
+{
+	int size;
+	int cache_size;
+	int available_cache;
+	pthread_mutex_t *table_lock;
+	entry* LRU_Cache;
+	entry** table; //array of entries
+}hashTable;
+
+
+
+unsigned long hashKey(char*words){ //hash key
+
+	int hash = 5381;
+	int c = 0;
+
+	while((c = *words++) != 0){
+		hash = ((hash << 5) + hash) + c;
+	}
+
+	if (hash < 0){
+		hash *= -1;
+	}
+
+	hash = hash % 10000000; //make sure its not out of index
+
+	return hash;
+
+}
+
+
+
+
+
+hashTable *ht;
+
+
+
+
+
 struct server {
 	int nr_threads;
 	int max_requests;
@@ -43,10 +95,199 @@ file_data_free(struct file_data *data)
 	free(data);
 }
 
+
+void update_Cache(struct file_data * data_in_file){
+
+	//if nothing is in cache
+	if(ht->LRU_Cache == NULL){
+
+		entry* new = malloc(sizeof(entry));
+		new->data = data_in_file;
+		new->count = 0;
+		new->next = NULL;
+		ht->LRU_Cache = new;
+	}else if(ht->LRU_Cache->next == NULL){
+
+		if(ht->LRU_Cache->data != data_in_file){
+			entry* new = malloc(sizeof(entry));
+			new->data = data_in_file;
+			new->count = 0;
+			new->next = NULL;
+			ht->LRU_Cache->next = new;
+		}
+		
+
+	}else{ //more than 1
+		entry* curr = ht->LRU_Cache;
+		entry* prev = ht->LRU_Cache;
+
+		while (curr)
+		{
+			if(curr->data == data_in_file) break; //find the same file
+			prev = curr;
+			curr = curr->next;
+		}
+		
+		if(curr){  //found
+		
+			if(curr->data == ht->LRU_Cache->data){ //if it is the first one
+				ht->LRU_Cache = ht->LRU_Cache->next;
+				curr->next = NULL;
+				entry* last = ht->LRU_Cache;
+				while (last)
+				{
+					prev = last;
+					last = last->next;
+				}
+				prev->next = curr;
+			
+			
+			
+			}else{
+				prev->next = curr->next;
+				curr->next = NULL;
+				while (prev->next)
+				{
+					prev = prev->next;
+				}
+				prev->next = curr;
+
+			}
+			//insert it to the back, most recent use is at the back of the linked list
+			
+		}else{
+			entry* new = malloc(sizeof(entry));
+			new->data = data_in_file;
+			new->count = 0;
+			new->next = NULL;
+			prev->next = new;
+		}
+	
+	}
+
+}
+
+struct file_data* cache_lookup(struct file_data* data_in_file, int flag){
+
+	unsigned long key = hashKey(data_in_file->file_name);
+
+	if(ht->table[key] == NULL){ //not find
+		return NULL;
+	}
+
+	entry* temp = ht->table[key];
+
+	while(temp){
+
+		if(strcmp(temp->data->file_name, data_in_file->file_name) == 0){
+			
+			if(!flag){
+				update_Cache(temp->data);
+			}
+			
+
+			return temp->data;
+		}
+
+		temp = temp->next;
+
+
+	}
+
+	return NULL; //cant find
+
+
+}
+
+
+void cache_insert_table(struct file_data* data_in_file){
+
+	unsigned long key = hashKey(data_in_file->file_name);
+	entry* new = malloc(sizeof(entry));
+	new->count = 0;
+	new->data = data_in_file;
+	new->next = NULL;
+
+	if(ht->table[key] == NULL){
+		ht->table[key] = new;
+		ht->available_cache = ht->available_cache - data_in_file->file_size;
+	}else{
+		entry * temp = ht->table[key];
+
+		while(temp->next){
+			temp = temp->next;
+		}
+
+		temp->next = new;
+		ht->available_cache = ht->available_cache - data_in_file->file_size;
+	}
+
+	update_Cache(data_in_file); 
+
+
+
+}
+
+void delete_entry(struct file_data* to_delete){
+	unsigned long key = hashKey(to_delete->file_name);
+
+	entry* curr = ht->table[key];
+	entry* prev = ht->table[key];
+
+	if(curr->next == NULL){
+		free(curr);
+		ht->table[key] = NULL;
+		return;
+	}
+	
+	
+	while (curr->data != to_delete)
+	{
+		prev = curr;
+		curr = curr->next;
+	}
+	
+	prev->next = curr->next;
+	
+	free(curr);
+}
+
+void cache_evict(int amount_to_evict){
+
+	while(ht->available_cache < amount_to_evict){
+		
+		entry* to_be_evicted = ht->LRU_Cache;
+		ht->LRU_Cache = ht->LRU_Cache->next;
+		ht->available_cache += to_be_evicted->data->file_size;
+		delete_entry(to_be_evicted->data);
+		free(to_be_evicted);
+	}
+}
+
+
+void cache_insert(struct file_data* data_to_insert){
+
+	if(data_to_insert->file_size > 0.5*ht->cache_size){
+		return;
+	}else if(data_to_insert->file_size > ht->available_cache){
+		cache_evict(data_to_insert->file_size);
+		cache_insert_table(data_to_insert);
+
+	}else{
+		cache_insert_table(data_to_insert);
+	}
+
+}
+
+
+
+
+
+
 static void
 do_server_request(struct server *sv, int connfd)
 {
-	int ret;
+	//int ret;
 	struct request *rq;
 	struct file_data *data;
 
@@ -61,15 +302,43 @@ do_server_request(struct server *sv, int connfd)
 	/* read file, 
 	 * fills data->file_buf with the file contents,
 	 * data->file_size with file size. */
-	ret = request_readfile(rq);
-	if (ret == 0) { /* couldn't read file */
-		goto out;
+	// ret = request_readfile(rq);
+	// if (ret == 0) { /* couldn't read file */
+	// 	goto out;
+	// }
+	
+	
+	struct file_data* cache_file = NULL;
+
+	if(sv->max_cache_size >0){
+		pthread_mutex_lock(ht->table_lock);
+		cache_file = cache_lookup(data, 0);
+		pthread_mutex_unlock(ht->table_lock);
 	}
-	/* send file to client */
-	request_sendfile(rq);
-out:
+	if(cache_file){
+		request_set_data(rq, cache_file);
+		request_sendfile(rq);
+	}else{
+		request_readfile(rq);
+		request_sendfile(rq);
+
+		if(sv->max_cache_size >0){
+			pthread_mutex_lock(ht->table_lock);
+			
+			struct file_data* returned_data = cache_lookup(data, 1);
+			if(!returned_data){
+				cache_insert(data);
+			}
+
+
+			pthread_mutex_unlock(ht->table_lock);
+		}
+
+
+
+	}
+
 	request_destroy(rq);
-	file_data_free(data);
 }
 
 /* entry point functions */
@@ -130,6 +399,23 @@ server_init(int nr_threads, int max_requests, int max_cache_size)
 	sv->exiting = 0;
 	
 	if (nr_threads > 0 || max_requests > 0 || max_cache_size > 0) {
+
+		if(max_cache_size > 0){
+			ht = malloc(sizeof(hashTable));
+			ht->size = 10000000;
+			ht->table = malloc(sizeof(entry*)*10000000);
+			ht->LRU_Cache = NULL;
+			ht->cache_size = max_cache_size;
+			ht->available_cache = max_cache_size;
+			ht->table_lock = malloc(sizeof(pthread_mutex_t));
+			pthread_mutex_init(ht->table_lock, NULL);
+			for(int i = 0; i < ht->size; i++){
+				ht->table[i] = NULL;
+			}
+		}
+
+
+
 		
 		sv->cv_full = malloc(sizeof (pthread_cond_t));
 		sv->cv_empty = malloc(sizeof(pthread_cond_t));
