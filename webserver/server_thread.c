@@ -96,6 +96,48 @@ file_data_free(struct file_data *data)
 }
 
 
+//functions 
+void update_Cache(struct file_data * data_in_file);
+struct file_data* cache_lookup(struct file_data* data_in_file, int flag);
+void cache_insert_table(struct file_data* data_in_file);
+void cache_evict(int amount_to_evict);
+void cache_insert(struct file_data* data_to_insert);
+
+
+
+
+struct file_data* cache_lookup(struct file_data* data_in_file, int flag){
+
+	unsigned long key = hashKey(data_in_file->file_name);
+
+	if(ht->table[key] == NULL){ //not find
+		return NULL;
+	}
+
+	entry* temp = ht->table[key];
+
+	while(temp){
+
+		if(strcmp(temp->data->file_name, data_in_file->file_name) == 0){
+			
+			if(!flag){
+				update_Cache(temp->data);
+			}
+			
+
+			return temp->data;
+		}
+
+		temp = temp->next;
+
+
+	}
+
+	return NULL; //cant find
+
+
+}
+
 void update_Cache(struct file_data * data_in_file){
 
 	//if nothing is in cache
@@ -132,28 +174,20 @@ void update_Cache(struct file_data * data_in_file){
 		
 			if(curr->data == ht->LRU_Cache->data){ //if it is the first one
 				ht->LRU_Cache = ht->LRU_Cache->next;
-				curr->next = NULL;
-				entry* last = ht->LRU_Cache;
-				while (last)
-				{
-					prev = last;
-					last = last->next;
-				}
-				prev->next = curr;
-			
-			
-			
+				curr->next = NULL;	
 			}else{
 				prev->next = curr->next;
 				curr->next = NULL;
-				while (prev->next)
-				{
-					prev = prev->next;
-				}
-				prev->next = curr;
 
 			}
 			//insert it to the back, most recent use is at the back of the linked list
+			entry*last = ht->LRU_Cache;
+			while (last->next)
+			{
+				last = last->next;
+			}
+			last->next = curr;
+			
 			
 		}else{
 			entry* new = malloc(sizeof(entry));
@@ -166,39 +200,6 @@ void update_Cache(struct file_data * data_in_file){
 	}
 
 }
-
-struct file_data* cache_lookup(struct file_data* data_in_file, int flag){
-
-	unsigned long key = hashKey(data_in_file->file_name);
-
-	if(ht->table[key] == NULL){ //not find
-		return NULL;
-	}
-
-	entry* temp = ht->table[key];
-
-	while(temp){
-
-		if(strcmp(temp->data->file_name, data_in_file->file_name) == 0){
-			
-			if(!flag){
-				update_Cache(temp->data);
-			}
-			
-
-			return temp->data;
-		}
-
-		temp = temp->next;
-
-
-	}
-
-	return NULL; //cant find
-
-
-}
-
 
 void cache_insert_table(struct file_data* data_in_file){
 
@@ -228,43 +229,6 @@ void cache_insert_table(struct file_data* data_in_file){
 
 }
 
-void delete_entry(struct file_data* to_delete){
-	unsigned long key = hashKey(to_delete->file_name);
-
-	entry* curr = ht->table[key];
-	entry* prev = ht->table[key];
-
-	if(curr->next == NULL){
-		free(curr);
-		ht->table[key] = NULL;
-		return;
-	}
-	
-	
-	while (curr->data != to_delete)
-	{
-		prev = curr;
-		curr = curr->next;
-	}
-	
-	prev->next = curr->next;
-	
-	free(curr);
-}
-
-void cache_evict(int amount_to_evict){
-
-	while(ht->available_cache < amount_to_evict){
-		
-		entry* to_be_evicted = ht->LRU_Cache;
-		ht->LRU_Cache = ht->LRU_Cache->next;
-		ht->available_cache += to_be_evicted->data->file_size;
-		delete_entry(to_be_evicted->data);
-		free(to_be_evicted);
-	}
-}
-
-
 void cache_insert(struct file_data* data_to_insert){
 
 	if(data_to_insert->file_size > 0.5*ht->cache_size){
@@ -278,6 +242,39 @@ void cache_insert(struct file_data* data_to_insert){
 	}
 
 }
+
+void cache_evict(int amount_to_evict){
+
+	while(ht->available_cache < amount_to_evict){
+		
+		entry* to_be_evicted = ht->LRU_Cache;
+		ht->LRU_Cache = ht->LRU_Cache->next;
+		ht->available_cache += to_be_evicted->data->file_size;
+		
+
+		unsigned long key = hashKey(to_be_evicted->data->file_name);
+		entry* curr = ht->table[key];
+		entry* prev = ht->table[key];
+		while (curr->data != to_be_evicted->data)
+		{
+			prev = curr;
+			curr = curr->next;
+		}
+		
+		prev->next = curr->next;
+		curr->next = NULL;
+		
+		if(ht->table[key]->next == NULL){
+			ht->table[key] = NULL;
+		}
+		free(curr);
+		to_be_evicted->next = NULL;
+		free(to_be_evicted);
+	}
+}
+
+
+
 
 
 
@@ -299,13 +296,6 @@ do_server_request(struct server *sv, int connfd)
 		file_data_free(data);
 		return;
 	}
-	/* read file, 
-	 * fills data->file_buf with the file contents,
-	 * data->file_size with file size. */
-	// ret = request_readfile(rq);
-	// if (ret == 0) { /* couldn't read file */
-	// 	goto out;
-	// }
 	
 	
 	struct file_data* cache_file = NULL;
@@ -319,14 +309,16 @@ do_server_request(struct server *sv, int connfd)
 		request_set_data(rq, cache_file);
 		request_sendfile(rq);
 	}else{
+		
+
 		request_readfile(rq);
 		request_sendfile(rq);
 
 		if(sv->max_cache_size >0){
 			pthread_mutex_lock(ht->table_lock);
 			
-			struct file_data* returned_data = cache_lookup(data, 1);
-			if(!returned_data){
+			
+			if(cache_lookup(data, 1) == NULL){
 				cache_insert(data);
 			}
 
@@ -404,10 +396,10 @@ server_init(int nr_threads, int max_requests, int max_cache_size)
 			ht = malloc(sizeof(hashTable));
 			ht->size = 10000000;
 			ht->table = malloc(sizeof(entry*)*10000000);
-			ht->LRU_Cache = NULL;
-			ht->cache_size = max_cache_size;
 			ht->available_cache = max_cache_size;
+			ht->cache_size = max_cache_size;
 			ht->table_lock = malloc(sizeof(pthread_mutex_t));
+			ht->LRU_Cache = NULL;
 			pthread_mutex_init(ht->table_lock, NULL);
 			for(int i = 0; i < ht->size; i++){
 				ht->table[i] = NULL;
